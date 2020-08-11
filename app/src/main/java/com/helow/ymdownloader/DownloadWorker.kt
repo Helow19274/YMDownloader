@@ -1,7 +1,8 @@
 package com.helow.ymdownloader
 
 import android.content.Context
-import android.util.Log
+import android.os.Handler
+import android.os.Looper
 import androidx.core.app.NotificationCompat
 import androidx.documentfile.provider.DocumentFile
 import androidx.work.CoroutineWorker
@@ -13,7 +14,6 @@ import com.helow.ymdownloader.model.Artist
 import com.helow.ymdownloader.model.Track
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.lang.Exception
 import java.math.BigInteger
 import java.security.MessageDigest
 
@@ -33,7 +33,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
         try {
             download()
         } catch (e: Exception) {
-            Log.d("ttt", e.localizedMessage.orEmpty())
+            Handler(Looper.getMainLooper()).post { toast(applicationContext, e.localizedMessage.orEmpty(), true) }
             return Result.failure()
         }
         return Result.success()
@@ -45,12 +45,12 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
         val track = service.getTrack(url.split("/").last())
         val title = getTitle(track.track)
         updateNotification(0, 1, title)
-        val info = service.getInfo(track.track.storageDir)
-        val md = MessageDigest.getInstance("MD5")
-        val digest = md.digest("XGRlBW9FXlekgbPrRHuSiA${info.path}${info.s}".toByteArray())
-        val hash = String.format("%032x", BigInteger(1, digest))
         val file = DocumentFile.fromTreeUri(applicationContext, baseUri)!!
-        if (file.findFile(title) == null) {
+        if (file.findFile("$title.mp3") == null) {
+            val info = service.getInfo(track.track.storageDir)
+            val md = MessageDigest.getInstance("MD5")
+            val digest = md.digest("XGRlBW9FXlekgbPrRHuSiA${info.path}${info.s}".toByteArray())
+            val hash = String.format("%032x", BigInteger(1, digest))
             withContext(Dispatchers.IO) {
                 val uri = file.createFile("audio/mpeg", title)!!.uri
                 val data = service.getFile(info.host, hash, info.ts, info.path).bytes()
