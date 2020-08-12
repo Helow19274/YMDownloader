@@ -21,7 +21,6 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
     private val notificationId = inputData.getInt("notification_id", 1)
     private val intent = WorkManager.getInstance(applicationContext).createCancelPendingIntent(id)
     private val notificationTemplate = NotificationCompat.Builder(applicationContext, "downloads")
-        .setContentTitle("Загрузка")
         .setSmallIcon(R.drawable.ic_launcher_foreground)
         .setOngoing(true)
         .setOnlyAlertOnce(true)
@@ -40,9 +39,13 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
     }
 
     private suspend fun download() {
-        updateNotification(0, 1)
         val url = inputData.getString("url") ?: throw RuntimeException()
-        val track = service.getTrack(url.split("/").last())
+        val track = try {
+            service.getTrack(url.split("/").last())
+        } catch (e: Exception) {
+            Handler(Looper.getMainLooper()).post { toast(applicationContext, "Некорректная ссылка: $url", true) }
+            return
+        }
         val title = getTitle(track.track)
         updateNotification(0, 1, title)
         val file = DocumentFile.fromTreeUri(applicationContext, baseUri)!!
@@ -51,6 +54,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
             val md = MessageDigest.getInstance("MD5")
             val digest = md.digest("XGRlBW9FXlekgbPrRHuSiA${info.path}${info.s}".toByteArray())
             val hash = String.format("%032x", BigInteger(1, digest))
+
             withContext(Dispatchers.IO) {
                 val uri = file.createFile("audio/mpeg", title)!!.uri
                 val data = service.getFile(info.host, hash, info.ts, info.path).bytes()
@@ -63,12 +67,11 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
         updateNotification(1, 1)
     }
 
-    private suspend fun updateNotification(progress: Int, max: Int, title: String? = null) {
+    private suspend fun updateNotification(progress: Int, max: Int, title: String? = "Загрузка") {
         val notification = notificationTemplate.apply {
             setContentText("$progress из $max")
             setProgress(max, progress, false)
-            if (title != null)
-                setContentTitle(title)
+            setContentTitle(title)
         }
 
         setForeground(ForegroundInfo(notificationId, notification.build()))
