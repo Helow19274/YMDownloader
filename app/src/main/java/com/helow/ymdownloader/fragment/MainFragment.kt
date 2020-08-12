@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Bundle
+import android.util.Patterns
 import android.view.*
 import androidx.core.content.edit
 import androidx.fragment.app.Fragment
@@ -15,6 +16,7 @@ import com.helow.ymdownloader.DownloadWorker
 import com.helow.ymdownloader.R
 import com.helow.ymdownloader.toast
 import kotlinx.android.synthetic.main.fragment_main.*
+import java.net.URL
 
 class MainFragment : Fragment() {
     private lateinit var preferences: SharedPreferences
@@ -40,8 +42,8 @@ class MainFragment : Fragment() {
             url.setText(requireActivity().intent.getStringExtra(Intent.EXTRA_TEXT))
 
         button.setOnClickListener {
-            val text = url.text
-            if (text.isNullOrBlank() || !text.startsWith("https://music.yandex.ru/"))
+            val text = url.text.toString().trim()
+            if (!Patterns.WEB_URL.matcher(text).matches() || URL(text).host != "music.yandex.ru")
                 return@setOnClickListener toast(requireContext(), "Некорректная ссылка")
 
             val notificationId = preferences.getInt("notification_id", 1)
