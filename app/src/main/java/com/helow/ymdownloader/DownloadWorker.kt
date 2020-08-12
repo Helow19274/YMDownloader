@@ -26,45 +26,44 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
         .setOnlyAlertOnce(true)
         .addAction(android.R.drawable.ic_delete, "Отмена", intent)
     private val service = Api.service
-    private val baseUri = context.contentResolver.persistedUriPermissions.firstOrNull()?.uri!!
+    private lateinit var file: DocumentFile
 
     override suspend fun doWork(): Result {
         try {
-            download()
+            val data = inputData.keyValueMap
+            val uri = applicationContext.contentResolver.persistedUriPermissions.firstOrNull()?.uri ?: return Result.failure()
+            file = DocumentFile.fromTreeUri(applicationContext, uri)!!
+            when {
+                "track" in data -> downloadTrack(data["track"] as Int)
+                "album" in data -> downloadAlbum(data["album"] as Int)
+                "artist" in data -> downloadArtist(data["artist"] as Int)
+            }
         } catch (e: Exception) {
-            Handler(Looper.getMainLooper()).post { toast(applicationContext, e.localizedMessage.orEmpty(), true) }
+            toast(e.localizedMessage.orEmpty(), true)
             return Result.failure()
         }
         return Result.success()
     }
 
-    private suspend fun download() {
-        val url = inputData.getString("url") ?: throw RuntimeException()
+    private suspend fun downloadTrack(trackId: Int) {
         val track = try {
-            service.getTrack(url.split("/").last())
+            service.getTrack(trackId)
         } catch (e: Exception) {
-            Handler(Looper.getMainLooper()).post { toast(applicationContext, "Некорректная ссылка: $url", true) }
+            toast("Некорректная ссылка")
             return
         }
         val title = getTitle(track.track)
         updateNotification(0, 1, title)
-        val file = DocumentFile.fromTreeUri(applicationContext, baseUri)!!
-        if (file.findFile("$title.mp3") == null) {
-            val info = service.getInfo(track.track.storageDir)
-            val md = MessageDigest.getInstance("MD5")
-            val digest = md.digest("XGRlBW9FXlekgbPrRHuSiA${info.path}${info.s}".toByteArray())
-            val hash = String.format("%032x", BigInteger(1, digest))
+        saveFile(title, track.track)
+        updateNotification(1, 1, title)
+    }
 
-            withContext(Dispatchers.IO) {
-                val uri = file.createFile("audio/mpeg", title)!!.uri
-                val data = service.getFile(info.host, hash, info.ts, info.path).bytes()
-                val stream = applicationContext.contentResolver.openOutputStream(uri)!!
-                stream.write(data)
-                stream.flush()
-                stream.close()
-            }
-        }
-        updateNotification(1, 1)
+    private fun downloadAlbum(albumId: Int) {
+        toast("Not implemented yet")
+    }
+
+    private fun downloadArtist(artistId: Int) {
+        toast("Not implemented yet")
     }
 
     private suspend fun updateNotification(progress: Int, max: Int, title: String? = "Загрузка") {
@@ -75,6 +74,26 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
         }
 
         setForeground(ForegroundInfo(notificationId, notification.build()))
+    }
+
+    private suspend fun saveFile(title: String, track: Track) {
+        if (file.findFile("$title.mp3") == null) {
+            val info = service.getInfo(track.storageDir)
+            val md = MessageDigest.getInstance("MD5")
+            val digest = md.digest("XGRlBW9FXlekgbPrRHuSiA${info.path}${info.s}".toByteArray())
+            val hash = String.format("%032x", BigInteger(1, digest))
+
+            withContext(Dispatchers.IO) {
+                val uri = file.createFile("audio/mpeg", title)!!.uri
+                val data = service.getFile(info.host, hash, info.ts, info.path).bytes()
+
+                applicationContext.contentResolver.openOutputStream(uri)!!.apply {
+                    write(data)
+                    flush()
+                    close()
+                }
+            }
+        }
     }
 
     private fun getTitle(track: Track): String {
@@ -98,5 +117,9 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
             artists.joinToString()
         else
             composers.joinToString()
+    }
+
+    private fun toast(message: String, long: Boolean = false) {
+        Handler(Looper.getMainLooper()).post { toast(applicationContext, message, long) }
     }
 }

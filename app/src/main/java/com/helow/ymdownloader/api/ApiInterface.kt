@@ -10,7 +10,17 @@ import retrofit2.http.Streaming
 
 interface ApiInterface {
     @GET("https://music.yandex.ru/handlers/track.jsx")
-    suspend fun getTrack(@Query("track") track: String): TrackResp
+    suspend fun getTrack(@Query("track") trackId: Int): TrackResp
+
+    @GET("https://music.yandex.ru/handlers/album.jsx")
+    suspend fun getAlbum(@Query("album") albumId: Int): TrackResp //TODO
+
+    @GET("https://music.yandex.ru/handlers/artist.jsx")
+    suspend fun getArtist(
+        @Query("track") artistId: Int,
+        @Query("what") what: String = "albums",
+        @Query("sort") sort: String = "year"
+    ): TrackResp //TODO
 
     @GET("https://storage.mds.yandex.net/download-info/{storageDir}/2?format=json")
     suspend fun getInfo(@Path("storageDir") storageDir: String): Info
