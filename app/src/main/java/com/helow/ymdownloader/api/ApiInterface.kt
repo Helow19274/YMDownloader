@@ -1,5 +1,6 @@
 package com.helow.ymdownloader.api
 
+import com.helow.ymdownloader.model.Album
 import com.helow.ymdownloader.model.Info
 import com.helow.ymdownloader.model.TrackResp
 import okhttp3.ResponseBody
@@ -13,7 +14,7 @@ interface ApiInterface {
     suspend fun getTrack(@Query("track") trackId: Int): TrackResp
 
     @GET("https://music.yandex.ru/handlers/album.jsx")
-    suspend fun getAlbum(@Query("album") albumId: Int): TrackResp //TODO
+    suspend fun getAlbum(@Query("album") albumId: Int): Album
 
     @GET("https://music.yandex.ru/handlers/artist.jsx")
     suspend fun getArtist(

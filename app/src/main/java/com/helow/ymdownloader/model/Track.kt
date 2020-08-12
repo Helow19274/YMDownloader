@@ -12,5 +12,6 @@ data class Track(
     val title: String,
     val storageDir: String,
     val version: String? = null,
-    val artists: List<Artist>
+    val artists: List<Artist>,
+    val id: Int
 )

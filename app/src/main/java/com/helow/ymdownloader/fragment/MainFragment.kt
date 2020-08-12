@@ -55,7 +55,7 @@ class MainFragment : Fragment() {
         }
 
         if (requireActivity().intent.action == Intent.ACTION_SEND)
-            url.setText(requireActivity().intent.getStringExtra(Intent.EXTRA_TEXT))
+            url.append(requireActivity().intent.getStringExtra(Intent.EXTRA_TEXT))
 
         button.setOnClickListener {
             val pathMap = try {

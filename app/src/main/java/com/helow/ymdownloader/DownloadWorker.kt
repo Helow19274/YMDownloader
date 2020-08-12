@@ -10,6 +10,7 @@ import androidx.work.ForegroundInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.helow.ymdownloader.api.Api
+import com.helow.ymdownloader.model.Album
 import com.helow.ymdownloader.model.Artist
 import com.helow.ymdownloader.model.Track
 import kotlinx.coroutines.Dispatchers
@@ -20,11 +21,6 @@ import java.security.MessageDigest
 class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     private val notificationId = inputData.getInt("notification_id", 1)
     private val intent = WorkManager.getInstance(applicationContext).createCancelPendingIntent(id)
-    private val notificationTemplate = NotificationCompat.Builder(applicationContext, "downloads")
-        .setSmallIcon(R.drawable.ic_launcher_foreground)
-        .setOngoing(true)
-        .setOnlyAlertOnce(true)
-        .addAction(android.R.drawable.ic_delete, "Отмена", intent)
     private val service = Api.service
     private lateinit var file: DocumentFile
 
@@ -47,30 +43,60 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
 
     private suspend fun downloadTrack(trackId: Int) {
         val track = try {
-            service.getTrack(trackId)
+            service.getTrack(trackId).track
         } catch (e: Exception) {
             toast("Некорректная ссылка")
             return
         }
-        val title = getTitle(track.track)
+        val title = getTrackTitle(track)
         updateNotification(0, 1, title)
-        saveFile(title, track.track)
+        saveFile(title, track)
         updateNotification(1, 1, title)
     }
 
-    private fun downloadAlbum(albumId: Int) {
-        toast("Not implemented yet")
+    private suspend fun downloadAlbum(albumId: Int) {
+        val album = try {
+            service.getAlbum(albumId)
+        } catch (e: Exception) {
+            toast("Некорректная ссылка")
+            return
+        }
+
+        val title = getAlbumTitle(album)
+        var counter = 0
+        updateNotification(counter, album.trackCount, title)
+        file = file.findFile(title) ?: file.createDirectory(title)!!
+
+        album.volumes.forEachIndexed { index, volume ->
+            if (album.volumes.size > 1)
+                file = file.findFile("Диск ${index + 1}") ?: file.createDirectory("Диск ${index + 1}")!!
+
+            volume.forEach {
+                val track = service.getTrack(it.id).track
+                saveFile(getTrackTitle(track), track)
+                updateNotification(++counter, album.trackCount, title)
+            }
+
+            file = file.parentFile!!
+        }
     }
 
-    private fun downloadArtist(artistId: Int) {
+    private suspend fun downloadArtist(artistId: Int) {
         toast("Not implemented yet")
     }
 
     private suspend fun updateNotification(progress: Int, max: Int, title: String? = "Загрузка") {
-        val notification = notificationTemplate.apply {
-            setContentText("$progress из $max")
-            setProgress(max, progress, false)
+        val notification = NotificationCompat.Builder(applicationContext, "downloads").apply {
+            setSmallIcon(R.drawable.ic_launcher_foreground)
+            setOnlyAlertOnce(true)
             setContentTitle(title)
+            if (progress != max) {
+                setContentText("$progress из $max")
+                setProgress(max, progress, false)
+                addAction(android.R.drawable.ic_delete, "Отмена", intent)
+            }
+            else
+                setContentText("Загружен(о) $max трек(а/ов)")
         }
 
         setForeground(ForegroundInfo(notificationId, notification.build()))
@@ -96,28 +122,16 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
         }
     }
 
-    private fun getTitle(track: Track): String {
+    private fun getTrackTitle(track: Track): String {
         var title = "${getArtists(track.artists)} - ${track.title}"
-        if (track.version != null)
+        if (!track.version.isNullOrBlank())
             title += " (${track.version})"
         return title.replace("?", "")
     }
 
-    private fun getArtists(allArtists: List<Artist>): String {
-        val artists = mutableListOf<String>()
-        val composers = mutableListOf<String>()
+    private fun getAlbumTitle(album: Album): String = "${getArtists(album.artists)} - ${album.title}".replace("?", "")
 
-        for (artist in allArtists)
-            if (!artist.composer)
-                artists.add(artist.name)
-            else
-                composers.add(artist.name)
-
-        return if (artists.isNotEmpty())
-            artists.joinToString()
-        else
-            composers.joinToString()
-    }
+    private fun getArtists(artists: List<Artist>): String = artists.joinToString { it.name }
 
     private fun toast(message: String, long: Boolean = false) {
         Handler(Looper.getMainLooper()).post { toast(applicationContext, message, long) }

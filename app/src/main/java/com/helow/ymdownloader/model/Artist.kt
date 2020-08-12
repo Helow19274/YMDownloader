@@ -4,6 +4,5 @@ import androidx.annotation.Keep
 
 @Keep
 data class Artist(
-    val name: String,
-    val composer: Boolean
+    val name: String
 )
