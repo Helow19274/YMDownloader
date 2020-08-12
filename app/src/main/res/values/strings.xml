@@ -3,4 +3,6 @@
     <string name="disconnected">Нет подключения к интернету</string>
     <string name="url">Ссылка</string>
     <string name="download">Скачать</string>
+    <string name="change_directory">Нажмите, чтобы изменить директорию</string>
+    <string name="settings">Настройки</string>
 </resources>

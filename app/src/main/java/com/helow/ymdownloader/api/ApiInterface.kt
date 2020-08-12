@@ -1,6 +1,7 @@
 package com.helow.ymdownloader.api
 
 import com.helow.ymdownloader.model.Album
+import com.helow.ymdownloader.model.ArtistResp
 import com.helow.ymdownloader.model.Info
 import com.helow.ymdownloader.model.TrackResp
 import okhttp3.ResponseBody
@@ -18,10 +19,10 @@ interface ApiInterface {
 
     @GET("https://music.yandex.ru/handlers/artist.jsx")
     suspend fun getArtist(
-        @Query("track") artistId: Int,
+        @Query("artist") artistId: Int,
         @Query("what") what: String = "albums",
         @Query("sort") sort: String = "year"
-    ): TrackResp //TODO
+    ): ArtistResp
 
     @GET("https://storage.mds.yandex.net/download-info/{storageDir}/2?format=json")
     suspend fun getInfo(@Path("storageDir") storageDir: String): Info

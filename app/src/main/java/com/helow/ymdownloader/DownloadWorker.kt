@@ -11,7 +11,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.helow.ymdownloader.api.Api
 import com.helow.ymdownloader.model.Album
-import com.helow.ymdownloader.model.Artist
+import com.helow.ymdownloader.model.PartialArtist
 import com.helow.ymdownloader.model.Track
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -77,12 +77,43 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
                 updateNotification(++counter, album.trackCount, title)
             }
 
-            file = file.parentFile!!
+            if (album.volumes.size > 1)
+                file = file.parentFile!!
         }
     }
 
     private suspend fun downloadArtist(artistId: Int) {
-        toast("Not implemented yet")
+        val artist = try {
+            service.getArtist(artistId)
+        } catch (e: Exception) {
+            toast("Некорректная ссылка")
+            return
+        }
+
+        var counter = 0
+        updateNotification(counter, artist.artist.counts.tracks, artist.artist.name)
+        file = file.findFile(artist.artist.name) ?: file.createDirectory(artist.artist.name)!!
+
+        artist.albumIds.forEach { albumId ->
+            val album = service.getAlbum(albumId)
+            val title = getAlbumTitle(album)
+            file = file.findFile(title) ?: file.createDirectory(title)!!
+
+            album.volumes.forEachIndexed { index, volume ->
+                if (album.volumes.size > 1)
+                    file = file.findFile("Диск ${index + 1}") ?: file.createDirectory("Диск ${index + 1}")!!
+
+                volume.forEach {
+                    val track = service.getTrack(it.id).track
+                    saveFile(getTrackTitle(track), track)
+                    updateNotification(++counter, artist.artist.counts.tracks, artist.artist.name)
+                }
+
+                if (album.volumes.size > 1)
+                    file = file.parentFile!!
+            }
+            file = file.parentFile!!
+        }
     }
 
     private suspend fun updateNotification(progress: Int, max: Int, title: String? = "Загрузка") {
@@ -131,7 +162,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
 
     private fun getAlbumTitle(album: Album): String = "${getArtists(album.artists)} - ${album.title}".replace("?", "")
 
-    private fun getArtists(artists: List<Artist>): String = artists.joinToString { it.name }
+    private fun getArtists(artists: List<PartialArtist>): String = artists.joinToString { it.name }
 
     private fun toast(message: String, long: Boolean = false) {
         Handler(Looper.getMainLooper()).post { toast(applicationContext, message, long) }

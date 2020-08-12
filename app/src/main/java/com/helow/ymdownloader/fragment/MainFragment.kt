@@ -80,6 +80,7 @@ class MainFragment : Fragment() {
                 .setConstraints(constraints)
                 .build()
             manager.enqueueUniqueWork("Download", ExistingWorkPolicy.APPEND_OR_REPLACE, request)
+            url.text = null
 
             val info = manager.getWorkInfosForUniqueWork("Download").get()
             toast(requireContext(), "Загрузка добавлена в очередь, место: ${info.size}")
