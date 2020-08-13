@@ -25,7 +25,7 @@ interface ApiInterface {
     suspend fun getPlaylist(
         @Query("owner") owner: String,
         @Query("kinds") playlistId: Int
-    ): PlayListResp
+    ): PlaylistResp
 
     @GET("https://storage.mds.yandex.net/download-info/{storageDir}/2?format=json")
     suspend fun getInfo(@Path("storageDir") storageDir: String): Info

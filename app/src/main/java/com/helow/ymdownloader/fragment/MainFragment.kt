@@ -7,7 +7,9 @@ import android.os.Bundle
 import android.util.Patterns
 import android.view.*
 import androidx.core.content.edit
+import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.observe
 import androidx.navigation.fragment.findNavController
 import androidx.work.*
@@ -15,8 +17,10 @@ import com.google.android.material.snackbar.Snackbar
 import com.helow.ymdownloader.DownloadWorker
 import com.helow.ymdownloader.NetworkConnection
 import com.helow.ymdownloader.R
+import com.helow.ymdownloader.api.Api
 import com.helow.ymdownloader.toast
 import kotlinx.android.synthetic.main.fragment_main.*
+import kotlinx.coroutines.launch
 import java.net.URL
 
 class MainFragment : Fragment() {
@@ -45,6 +49,7 @@ class MainFragment : Fragment() {
                 if (requireContext().contentResolver.persistedUriPermissions.isNotEmpty()) {
                     button.isEnabled = true
                     url.isEnabled = true
+                    url.text?.let { analyzeUrl(it) }
                 }
             }
             else {
@@ -52,6 +57,11 @@ class MainFragment : Fragment() {
                 url.isEnabled = false
                 offlineTextView.visibility = View.VISIBLE
             }
+        }
+
+        url.addTextChangedListener {
+            if (it != null)
+                analyzeUrl(it)
         }
 
         if (requireActivity().intent.action == Intent.ACTION_SEND)
@@ -147,12 +157,66 @@ class MainFragment : Fragment() {
                 pathMap[k] = v.toInt()
         }
 
-        if (!listOf("track", "album", "artist", "playlists").any { it in pathMap })
+        if (listOf("track", "album", "artist", "playlists").none { it in pathMap })
             return null
 
-        if ("playlists" in pathMap && "users" !in pathMap)
+        if (listOf("playlists", "users").count { it in pathMap } == 1)
             return null
 
         return pathMap
+    }
+
+    private fun analyzeUrl(text: CharSequence) {
+        val map = try {
+            parseUrl(text.toString().trim())
+        } catch (e: Exception) {
+            return
+        }
+        if (map == null) {
+            title.text = null
+            type.text = null
+            return
+        }
+
+        lifecycleScope.launch {
+            when {
+                "track" in map -> {
+                    val track = try {
+                        Api.service.getTrack(map["track"] as Int).track
+                    } catch (e: Exception) {
+                        return@launch
+                    }
+                    title.text = DownloadWorker.getTrackTitle(track)
+                    type.text = "Трек"
+                }
+                "album" in map -> {
+                    val album = try {
+                        Api.service.getAlbum(map["album"] as Int)
+                    } catch (e: Exception) {
+                        return@launch
+                    }
+                    title.text = DownloadWorker.getAlbumTitle(album)
+                    type.text = "Альбом"
+                }
+                "artist" in map -> {
+                    val artist = try {
+                        Api.service.getArtist(map["artist"] as Int).artist
+                    } catch (e: Exception) {
+                        return@launch
+                    }
+                    title.text = artist.name
+                    type.text = "Исполнитель"
+                }
+                "playlists" in map -> {
+                    val playlist = try {
+                        Api.service.getPlaylist(map["users"] as String, map["playlists"] as Int).playlist
+                    } catch (e: Exception) {
+                        return@launch
+                    }
+                    title.text = DownloadWorker.getPlaylistTitle(playlist)
+                    type.text = "Плейлист"
+                }
+            }
+        }
     }
 }

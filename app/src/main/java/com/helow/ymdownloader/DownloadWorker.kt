@@ -9,10 +9,10 @@ import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import com.helow.ymdownloader.api.Api
+import com.helow.ymdownloader.api.Api.service
 import com.helow.ymdownloader.model.Album
 import com.helow.ymdownloader.model.PartialArtist
-import com.helow.ymdownloader.model.PlayList
+import com.helow.ymdownloader.model.Playlist
 import com.helow.ymdownloader.model.Track
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -22,7 +22,6 @@ import java.security.MessageDigest
 class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     private val notificationId = inputData.getInt("notification_id", 1)
     private val intent = WorkManager.getInstance(applicationContext).createCancelPendingIntent(id)
-    private val service = Api.service
     private lateinit var file: DocumentFile
 
     override suspend fun doWork(): Result {
@@ -171,18 +170,33 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
         }
     }
 
-    private fun getTrackTitle(track: Track): String {
-        var title = "${getArtists(track.artists)} - ${track.title}"
-        if (!track.version.isNullOrBlank())
-            title += " (${track.version})"
-        return title.replace("?", "")
+//    private fun getTrackTitle(track: Track): String {
+//        var title = "${getArtists(track.artists)} - ${track.title}"
+//        if (!track.version.isNullOrBlank())
+//            title += " (${track.version})"
+//        return title.replace("?", "")
+//    }
+
+    companion object {
+        fun getAlbumTitle(album: Album): String = "${getArtists(album.artists)} - ${album.title}".replace("?", "")
+
+        fun getPlaylistTitle(playlist: Playlist): String = "${playlist.owner.name} - ${playlist.title}".replace("?", "")
+
+        private fun getArtists(artists: List<PartialArtist>): String = artists.joinToString { it.name }
+
+        fun getTrackTitle(track: Track): String {
+            var title = "${getArtists(track.artists)} - ${track.title}"
+            if (!track.version.isNullOrBlank())
+                title += " (${track.version})"
+            return title.replace("?", "")
+        }
     }
 
-    private fun getAlbumTitle(album: Album): String = "${getArtists(album.artists)} - ${album.title}".replace("?", "")
+    //private fun getAlbumTitle(album: Album): String = "${getArtists(album.artists)} - ${album.title}".replace("?", "")
 
-    private fun getPlaylistTitle(playlist: PlayList): String = "${playlist.owner.name} - ${playlist.title}".replace("?", "")
+    //private fun getPlaylistTitle(playlist: PlayList): String = "${playlist.owner.name} - ${playlist.title}".replace("?", "")
 
-    private fun getArtists(artists: List<PartialArtist>): String = artists.joinToString { it.name }
+    //private fun getArtists(artists: List<PartialArtist>): String = artists.joinToString { it.name }
 
     private fun toast(message: String, long: Boolean = false) {
         Handler(Looper.getMainLooper()).post { toast(applicationContext, message, long) }

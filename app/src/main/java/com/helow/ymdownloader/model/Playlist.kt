@@ -3,12 +3,12 @@ package com.helow.ymdownloader.model
 import androidx.annotation.Keep
 
 @Keep
-data class PlayListResp(
-    val playlist: PlayList
+data class PlaylistResp(
+    val playlist: Playlist
 )
 
 @Keep
-data class PlayList(
+data class Playlist(
     val tracks: List<Track>,
     val trackCount: Int,
     val title: String,
