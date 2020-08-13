@@ -158,11 +158,10 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
             val md = MessageDigest.getInstance("MD5")
             val digest = md.digest("XGRlBW9FXlekgbPrRHuSiA${info.path}${info.s}".toByteArray())
             val hash = String.format("%032x", BigInteger(1, digest))
+            val uri = file.createFile("audio/mpeg", title)!!.uri
 
             withContext(Dispatchers.IO) {
-                val uri = file.createFile("audio/mpeg", title)!!.uri
                 val data = service.getFile(info.host, hash, info.ts, info.path).bytes()
-
                 applicationContext.contentResolver.openOutputStream(uri)!!.apply {
                     write(data)
                     flush()
