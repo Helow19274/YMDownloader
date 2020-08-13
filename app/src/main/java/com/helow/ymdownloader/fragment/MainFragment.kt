@@ -49,7 +49,13 @@ class MainFragment : Fragment() {
                 if (requireContext().contentResolver.persistedUriPermissions.isNotEmpty()) {
                     button.isEnabled = true
                     url.isEnabled = true
-                    url.text?.let { analyzeUrl(it) }
+                    val text = url.text
+                    if (!text.isNullOrBlank())
+                        analyzeUrl(text)
+                    else {
+                        button.isEnabled = false
+                        type.text = null
+                    }
                 }
             }
             else {
@@ -60,25 +66,23 @@ class MainFragment : Fragment() {
         }
 
         url.addTextChangedListener {
-            if (it != null)
+            if (!it.isNullOrBlank())
                 analyzeUrl(it)
+            else {
+                button.isEnabled = false
+                type.text = null
+            }
         }
 
         if (requireActivity().intent.action == Intent.ACTION_SEND)
-            url.append(requireActivity().intent.getStringExtra(Intent.EXTRA_TEXT))
+            url.setText(requireActivity().intent.getStringExtra(Intent.EXTRA_TEXT))
 
         button.setOnClickListener {
-            val pathMap = try {
-               parseUrl(url.text.toString().trim()) ?: return@setOnClickListener toast(requireContext(), "Некорректная ссылка")
-            } catch (e: Exception) {
-                return@setOnClickListener toast(requireContext(), "Некорректная ссылка")
-            }
-
             val notificationId = preferences.getInt("notification_id", 1)
 
             val data = Data.Builder()
                 .putInt("notification_id", notificationId)
-                .putAll(pathMap)
+                .putAll(parseUrl(url.text.toString().trim())!!)
                 .build()
 
             val constraints = Constraints.Builder()
@@ -170,11 +174,14 @@ class MainFragment : Fragment() {
         val map = try {
             parseUrl(text.toString().trim())
         } catch (e: Exception) {
+            type.text = "Некорректная ссылка"
+            button.isEnabled = false
             return
         }
         if (map == null) {
             title.text = null
-            type.text = null
+            type.text = "Некорректная ссылка"
+            button.isEnabled = false
             return
         }
 
@@ -184,6 +191,8 @@ class MainFragment : Fragment() {
                     val track = try {
                         Api.service.getTrack(map["track"] as Int).track
                     } catch (e: Exception) {
+                        type.text = "Некорректная ссылка"
+                        button.isEnabled = false
                         return@launch
                     }
                     title.text = DownloadWorker.getTrackTitle(track)
@@ -193,6 +202,8 @@ class MainFragment : Fragment() {
                     val album = try {
                         Api.service.getAlbum(map["album"] as Int)
                     } catch (e: Exception) {
+                        type.text = "Некорректная ссылка"
+                        button.isEnabled = false
                         return@launch
                     }
                     title.text = DownloadWorker.getAlbumTitle(album)
@@ -202,6 +213,8 @@ class MainFragment : Fragment() {
                     val artist = try {
                         Api.service.getArtist(map["artist"] as Int).artist
                     } catch (e: Exception) {
+                        type.text = "Некорректная ссылка"
+                        button.isEnabled = false
                         return@launch
                     }
                     title.text = artist.name
@@ -211,12 +224,15 @@ class MainFragment : Fragment() {
                     val playlist = try {
                         Api.service.getPlaylist(map["users"] as String, map["playlists"] as Int).playlist
                     } catch (e: Exception) {
+                        type.text = "Некорректная ссылка или приватный плейлист"
+                        button.isEnabled = false
                         return@launch
                     }
                     title.text = DownloadWorker.getPlaylistTitle(playlist)
                     type.text = "Плейлист"
                 }
             }
+            button.isEnabled = true
         }
     }
 }

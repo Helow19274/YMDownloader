@@ -36,18 +36,14 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
                 "playlists" in data -> downloadPlaylist(data["users"] as String, data["playlists"] as Int)
             }
         } catch (e: Exception) {
-            toast(e.localizedMessage.orEmpty(), true)
+            Handler(Looper.getMainLooper()).post { toast(applicationContext, e.localizedMessage.orEmpty(), true) }
             return Result.failure()
         }
         return Result.success()
     }
 
     private suspend fun downloadTrack(trackId: Int) {
-        val track = try {
-            service.getTrack(trackId).track
-        } catch (e: Exception) {
-            return toast("Некорректная ссылка")
-        }
+        val track = service.getTrack(trackId).track
         val title = getTrackTitle(track)
         updateNotification(0, 1, title)
         saveFile(title, track)
@@ -55,11 +51,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
     }
 
     private suspend fun downloadAlbum(albumId: Int) {
-        val album = try {
-            service.getAlbum(albumId)
-        } catch (e: Exception) {
-            return toast("Некорректная ссылка")
-        }
+        val album = service.getAlbum(albumId)
 
         val title = getAlbumTitle(album)
         var counter = 0
@@ -82,11 +74,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
     }
 
     private suspend fun downloadArtist(artistId: Int) {
-        val artist = try {
-            service.getArtist(artistId)
-        } catch (e: Exception) {
-            return toast("Некорректная ссылка")
-        }
+        val artist = service.getArtist(artistId)
 
         var counter = 0
         updateNotification(counter, artist.artist.counts.tracks, artist.artist.name)
@@ -115,11 +103,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
     }
 
     private suspend fun downloadPlaylist(owner: String, playlistId: Int) {
-        val playlist = try {
-            service.getPlaylist(owner, playlistId).playlist
-        } catch (e: Exception) {
-            return toast("Некорректная ссылка или приватный плейлист")
-        }
+        val playlist = service.getPlaylist(owner, playlistId).playlist
 
         var counter = 0
         val title = getPlaylistTitle(playlist)
@@ -170,18 +154,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
         }
     }
 
-//    private fun getTrackTitle(track: Track): String {
-//        var title = "${getArtists(track.artists)} - ${track.title}"
-//        if (!track.version.isNullOrBlank())
-//            title += " (${track.version})"
-//        return title.replace("?", "")
-//    }
-
     companion object {
-        fun getAlbumTitle(album: Album): String = "${getArtists(album.artists)} - ${album.title}".replace("?", "")
-
-        fun getPlaylistTitle(playlist: Playlist): String = "${playlist.owner.name} - ${playlist.title}".replace("?", "")
-
         private fun getArtists(artists: List<PartialArtist>): String = artists.joinToString { it.name }
 
         fun getTrackTitle(track: Track): String {
@@ -190,15 +163,9 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
                 title += " (${track.version})"
             return title.replace("?", "")
         }
-    }
 
-    //private fun getAlbumTitle(album: Album): String = "${getArtists(album.artists)} - ${album.title}".replace("?", "")
+        fun getAlbumTitle(album: Album): String = "${getArtists(album.artists)} - ${album.title}".replace("?", "")
 
-    //private fun getPlaylistTitle(playlist: PlayList): String = "${playlist.owner.name} - ${playlist.title}".replace("?", "")
-
-    //private fun getArtists(artists: List<PartialArtist>): String = artists.joinToString { it.name }
-
-    private fun toast(message: String, long: Boolean = false) {
-        Handler(Looper.getMainLooper()).post { toast(applicationContext, message, long) }
+        fun getPlaylistTitle(playlist: Playlist): String = "${playlist.owner.name} - ${playlist.title}".replace("?", "")
     }
 }
