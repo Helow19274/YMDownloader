@@ -12,6 +12,7 @@ import androidx.work.WorkerParameters
 import com.helow.ymdownloader.api.Api
 import com.helow.ymdownloader.model.Album
 import com.helow.ymdownloader.model.PartialArtist
+import com.helow.ymdownloader.model.PlayList
 import com.helow.ymdownloader.model.Track
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -33,6 +34,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
                 "track" in data -> downloadTrack(data["track"] as Int)
                 "album" in data -> downloadAlbum(data["album"] as Int)
                 "artist" in data -> downloadArtist(data["artist"] as Int)
+                "playlists" in data -> downloadPlaylist(data["users"] as String, data["playlists"] as Int)
             }
         } catch (e: Exception) {
             toast(e.localizedMessage.orEmpty(), true)
@@ -45,8 +47,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
         val track = try {
             service.getTrack(trackId).track
         } catch (e: Exception) {
-            toast("Некорректная ссылка")
-            return
+            return toast("Некорректная ссылка")
         }
         val title = getTrackTitle(track)
         updateNotification(0, 1, title)
@@ -58,8 +59,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
         val album = try {
             service.getAlbum(albumId)
         } catch (e: Exception) {
-            toast("Некорректная ссылка")
-            return
+            return toast("Некорректная ссылка")
         }
 
         val title = getAlbumTitle(album)
@@ -86,8 +86,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
         val artist = try {
             service.getArtist(artistId)
         } catch (e: Exception) {
-            toast("Некорректная ссылка")
-            return
+            return toast("Некорректная ссылка")
         }
 
         var counter = 0
@@ -114,6 +113,26 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
             }
             file = file.parentFile!!
         }
+    }
+
+    private suspend fun downloadPlaylist(owner: String, playlistId: Int) {
+        val playlist = try {
+            service.getPlaylist(owner, playlistId).playlist
+        } catch (e: Exception) {
+            return toast("Некорректная ссылка или приватный плейлист")
+        }
+
+        var counter = 0
+        val title = getPlaylistTitle(playlist)
+        updateNotification(counter, playlist.trackCount, title)
+        file = file.findFile(title) ?: file.createDirectory(title)!!
+
+        playlist.tracks.forEach {
+            val track = service.getTrack(it.id).track
+            saveFile(getTrackTitle(track), track)
+            updateNotification(++counter, playlist.trackCount, title)
+        }
+        file = file.parentFile!!
     }
 
     private suspend fun updateNotification(progress: Int, max: Int, title: String? = "Загрузка") {
@@ -161,6 +180,8 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
     }
 
     private fun getAlbumTitle(album: Album): String = "${getArtists(album.artists)} - ${album.title}".replace("?", "")
+
+    private fun getPlaylistTitle(playlist: PlayList): String = "${playlist.owner.name} - ${playlist.title}".replace("?", "")
 
     private fun getArtists(artists: List<PartialArtist>): String = artists.joinToString { it.name }
 

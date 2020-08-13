@@ -83,7 +83,8 @@ class MainFragment : Fragment() {
             url.text = null
 
             val info = manager.getWorkInfosForUniqueWork("Download").get()
-            toast(requireContext(), "Загрузка добавлена в очередь, место: ${info.size}")
+            if (info.size > 1)
+                toast(requireContext(), "Загрузка добавлена в очередь, место: ${info.size}")
 
             preferences.edit(commit = true) {
                 putInt("notification_id", notificationId + 1)
@@ -123,7 +124,7 @@ class MainFragment : Fragment() {
         return super.onOptionsItemSelected(item)
     }
 
-    private fun parseUrl(text: String): Map<String, Int>? {
+    private fun parseUrl(text: String): Map<String, Any>? {
         if (!Patterns.WEB_URL.matcher(text).matches())
             return null
 
@@ -136,11 +137,20 @@ class MainFragment : Fragment() {
             return null
 
         val pathIterator = pathList.iterator()
-        val pathMap = mutableMapOf<String, Int>()
-        while (pathIterator.hasNext())
-            pathMap[pathIterator.next()] = pathIterator.next().toInt()
+        val pathMap = mutableMapOf<String, Any>()
+        while (pathIterator.hasNext()) {
+            val k = pathIterator.next()
+            val v = pathIterator.next()
+            if (k == "users")
+                pathMap[k] = v
+            else
+                pathMap[k] = v.toInt()
+        }
 
-        if (!listOf("track", "album", "artist").any { it in pathMap })
+        if (!listOf("track", "album", "artist", "playlists").any { it in pathMap })
+            return null
+
+        if ("playlists" in pathMap && "users" !in pathMap)
             return null
 
         return pathMap

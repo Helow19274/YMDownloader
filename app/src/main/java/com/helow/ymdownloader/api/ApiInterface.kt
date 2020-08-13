@@ -1,9 +1,6 @@
 package com.helow.ymdownloader.api
 
-import com.helow.ymdownloader.model.Album
-import com.helow.ymdownloader.model.ArtistResp
-import com.helow.ymdownloader.model.Info
-import com.helow.ymdownloader.model.TrackResp
+import com.helow.ymdownloader.model.*
 import okhttp3.ResponseBody
 import retrofit2.http.GET
 import retrofit2.http.Path
@@ -23,6 +20,12 @@ interface ApiInterface {
         @Query("what") what: String = "albums",
         @Query("sort") sort: String = "year"
     ): ArtistResp
+
+    @GET("https://music.yandex.ru/handlers/playlist.jsx")
+    suspend fun getPlaylist(
+        @Query("owner") owner: String,
+        @Query("kinds") playlistId: Int
+    ): PlayListResp
 
     @GET("https://storage.mds.yandex.net/download-info/{storageDir}/2?format=json")
     suspend fun getInfo(@Path("storageDir") storageDir: String): Info
